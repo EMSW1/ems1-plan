@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -769,9 +768,9 @@
 
             // Save new state
             await Promise.all([
-                db.ref('ems1/config/platforms_list').set(PLATFORMS),
-                db.ref('ems1/config/boites').set(boitesConfig),
-                db.ref('ems1/config/visibility').set(platVisibility)
+                db.ref('ems4/config/platforms_list').set(PLATFORMS),
+                db.ref('ems4/config/boites').set(boitesConfig),
+                db.ref('ems4/config/visibility').set(platVisibility)
             ]);
 
             location.reload();
@@ -782,8 +781,8 @@
                 PLATFORMS = PLATFORMS.filter(p => p !== name);
                 
                 await Promise.all([
-                    db.ref('ems1/config/platforms_list').set(PLATFORMS),
-                    db.ref(`ems1/plans/${name}`).remove() // Clean data
+                    db.ref('ems4/config/platforms_list').set(PLATFORMS),
+                    db.ref(`ems4/plans/${name}`).remove() // Clean data
                 ]);
                 
                 location.reload();
@@ -793,7 +792,7 @@
         async function updateBoitesConfig(plat, val) {
             if(userRole !== 'super') return;
             boitesConfig[plat] = parseInt(val) || 0;
-            await db.ref('ems1/config/boites').set(boitesConfig);
+            await db.ref('ems4/config/boites').set(boitesConfig);
             renderPlatformDeploys(plat); // Re-calc division
             checkChanges();
         }
@@ -858,7 +857,7 @@
                 deploys.forEach((d, i) => {
                      const html = `
                      <label class="flex items-center gap-1 cursor-pointer p-0.5 rounded hover:bg-white/20">
-                         <input type="checkbox" class="w-3 h-3 rounded text-${color}-500 focus:ring-0 border-gray-300 ${type}-chk-target-${plat}" value="${i}">
+                         <input type="checkbox" class="w-3 h-3 rounded text-${color}-500 focus:ring-0 border-gray-300 generic-chk-target" data-plat="${plat}" value="${i}">
                          <span class="text-[9px] font-bold text-slate-600 dark:text-slate-300">D${i+1}</span>
                      </label>`;
                      container.insertAdjacentHTML('beforeend', html);
@@ -891,7 +890,7 @@
                 deploys.forEach((d, i) => {
                      const html = `
                      <label class="flex items-center gap-1 cursor-pointer p-0.5 rounded hover:bg-emerald-500/10">
-                         <input type="checkbox" class="w-3 h-3 rounded text-emerald-500 focus:ring-emerald-500 border-emerald-300 dist-chk-target-${plat}" value="${i}" checked>
+                         <input type="checkbox" class="w-3 h-3 rounded text-emerald-500 focus:ring-emerald-500 border-emerald-300 dist-deploy-chk" data-plat="${plat}" value="${i}" checked>
                          <span class="text-[9px] font-bold text-emerald-800 dark:text-emerald-300">D${i+1}</span>
                      </label>`;
                      container.insertAdjacentHTML('beforeend', html);
@@ -901,7 +900,8 @@
         
         function toggleAllDistItems(plat, source) {
             const list = document.getElementById(`dist-list-${plat}`);
-            const boxes = list.querySelectorAll(`.dist-chk-target-${plat}`);
+            if(!list) return;
+            const boxes = list.querySelectorAll(`.dist-deploy-chk`);
             boxes.forEach(b => b.checked = source.checked);
         }
         
@@ -981,8 +981,11 @@
             let appliedCount = 0;
             PLATFORMS.forEach(plat => {
                  const chk = document.getElementById(`${field}-chk-${plat}`);
-                 if(chk && chk.checked) {
-                     const checkboxes = document.querySelectorAll(`.${field}-chk-target-${plat}:checked`);
+                 const list = document.getElementById(`${field}-list-${plat}`);
+                 
+                 if(chk && chk.checked && list) {
+                     // Updated selector to use class and container instead of class-with-plat-name
+                     const checkboxes = list.querySelectorAll(`.generic-chk-target:checked`);
                      checkboxes.forEach(chk => {
                          const idx = parseInt(chk.value);
                          if(platformsData[plat].deploys[idx]) {
@@ -1010,10 +1013,12 @@
             const targets = [];
             PLATFORMS.forEach(p => {
                 const chk = document.getElementById('chk-'+p);
-                if(chk && chk.checked) {
+                const list = document.getElementById('dist-list-'+p);
+                
+                if(chk && chk.checked && list) {
                     if(platformsData[p] && platformsData[p].deploys) {
-                        // NEW LOGIC: Check specific checkboxes instead of all
-                        const specificChks = document.querySelectorAll(`.dist-chk-target-${p}:checked`);
+                        // NEW LOGIC: Select using the common class within the container
+                        const specificChks = list.querySelectorAll(`.dist-deploy-chk:checked`);
                         
                         if (specificChks.length > 0) {
                             specificChks.forEach(c => {
@@ -1021,10 +1026,6 @@
                                 platformsData[p].deploys[idx].ips = ""; // Clear specific target
                                 targets.push({plat: p, index: idx});
                             });
-                        } else {
-                           // If Platform is checked but no children (should not happen due to auto-select, but fallback)
-                           // Do nothing or user intended to clear? 
-                           // For safety, if no specific targets are checked, we don't distribute to this platform.
                         }
                     }
                 }
@@ -1078,6 +1079,16 @@
             document.getElementById('actionToolbar').classList.remove('hidden');
         }
 
+        function escapeHtml(text) {
+          if (!text) return text;
+          return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+        }
+
         async function saveAll(sendNotif = true) {
             document.getElementById('loadingOverlay').style.display = 'flex';
             
@@ -1095,15 +1106,14 @@
             
             const editorName = document.getElementById('globalEditor').value;
             
-            // Identify visible platforms (Super admin sees all, others see visible only)
+            // Identify visible platforms
             const platsToSave = PLATFORMS.filter(p => userRole === 'super' || platVisibility[p]);
             
-            // Loop through all platforms to save changes and send notifications per platform
+            // Loop through all platforms
             for (const plat of platsToSave) {
                 const currentPlatform = plat;
                 const platformData = platformsData[plat];
                 
-                // Safety check if platform data is loaded
                 if(!platformData) continue;
 
                 // Prepare Data
@@ -1119,12 +1129,8 @@
                 let hasRealChanges = false;
                 
                 // Track internal changes
-                if((originalData.filter || "") !== filter) {
-                    logChanges.push("• Global Filter updated");
-                }
-                if(JSON.stringify(stats) !== JSON.stringify(originalData.stats || {})) {
-                    logChanges.push("• Performance Stats updated");
-                }
+                if((originalData.filter || "") !== filter) logChanges.push("• Global Filter updated");
+                if(JSON.stringify(stats) !== JSON.stringify(originalData.stats || {})) logChanges.push("• Performance Stats updated");
 
                 if (deploys.length === 0) {
                      if(oldDeploys.length > 0) hasRealChanges = true;
@@ -1168,20 +1174,37 @@
 
                 // Send Telegram (ONLY if sendNotif is true AND actual Deploy changes detected)
                 if (sendNotif && hasRealChanges) {
-                    const platformUrl = `https://ems1-plan.pages.dev/`;
-                    const viewLink = `${platformUrl}?mode=view&plat=${currentPlatform}&target=true`;
+                    // Dynamic URL Logic: first letter + lowercased (WEB -> emsw)
+                    const platKey = currentPlatform.charAt(0).toLowerCase();
+                    const platformUrl = `https://ems${platKey}.pages.dev/`;
+                    const viewLink = `${platformUrl}?mode=view&plat=${encodeURIComponent(currentPlatform)}&target=true`;
                     
+                    const safePlat = escapeHtml(currentPlatform);
+                    const safeEditor = escapeHtml(editorName);
+
                     let telegramMsg = "";
                     if (deploys.length === 0 && oldDeploys.length > 0) {
-                        telegramMsg = `⚠️ <b>STOPPED: #${currentPlatform}</b>\n` + `👤 <b>BY : ${editorName}</b>\n` + `━━━━━━━━━━━━━━━\n` + `🚫 <b>ALL DEPLOYS REMOVED</b>\n` + `━━━━━━━━━━━━━━━\n` + `🔗 <a href="${viewLink}"><b>VIEW PLAN</b></a>`;
+                        telegramMsg = `⚠️ <b>STOPPED: #${safePlat}</b>\n` + `👤 <b>BY : ${safeEditor}</b>\n` + `━━━━━━━━━━━━━━━\n` + `🚫 <b>ALL DEPLOYS REMOVED</b>\n` + `━━━━━━━━━━━━━━━\n` + `🔗 <a href="${viewLink}"><b>VIEW PLAN</b></a>`;
                     } else {
-                        const changesText = logChanges.length > 0 ? logChanges.join('\n') : "• Saved by user";
-                        telegramMsg = `🔄 <b>#${currentPlatform} UPDATE</b>\n` + `👤 <b>BY: ${editorName}</b>\n` + `📝 <b>CHANGES:</b>\n` + `${changesText}\n` + `━━━━━━━━━━━━━━━\n` + `🔗 <b><a href="${viewLink}">VIEW PLAN</a></b>`;
+                        const changesText = logChanges.length > 0 ? logChanges.map(c => escapeHtml(c)).join('\n') : "• Saved by user";
+                        telegramMsg = `🔄 <b>#${safePlat} UPDATE</b>\n` + `👤 <b>BY: ${safeEditor}</b>\n` + `📝 <b>CHANGES:</b>\n` + `${changesText}\n` + `━━━━━━━━━━━━━━━\n` + `🔗 <b><a href="${viewLink}">VIEW PLAN</a></b>`;
                     }
                     
                     try { 
-                        await fetch(`https://api.telegram.org/bot${CONFIG.telegram.token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CONFIG.telegram.chatId, text: telegramMsg, parse_mode: 'HTML' }) }); 
-                    } catch (e) { console.error("Telegram Error:", e); }
+                        const resp = await fetch(`https://api.telegram.org/bot${CONFIG.telegram.token}/sendMessage`, { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' }, 
+                            body: JSON.stringify({ chat_id: CONFIG.telegram.chatId, text: telegramMsg, parse_mode: 'HTML' }) 
+                        });
+                        if(!resp.ok) {
+                            const errData = await resp.json();
+                            console.error('Telegram Error', errData);
+                            alert('Telegram Error: ' + (errData.description || 'Unknown'));
+                        }
+                    } catch (e) { 
+                        console.error("Telegram Error:", e);
+                        alert("Telegram Connection Error: " + e.message);
+                    }
                 }
                 
                 originalPlatformsData[currentPlatform] = JSON.parse(JSON.stringify({ deploys, filter, stats, editor: editorName }));
@@ -1273,7 +1296,7 @@
         // VISIBILITY TOGGLE (Super Admin)
         async function toggleVisibility(plat) {
             platVisibility[plat] = !platVisibility[plat];
-            await db.ref('ems1/config/visibility').set(platVisibility);
+            await db.ref('ems4/config/visibility').set(platVisibility);
             const wrapper = document.getElementById(`wrapper-${plat}`);
             if(platVisibility[plat]) wrapper.classList.remove('opacity-50', 'grayscale');
             else wrapper.classList.add('opacity-50', 'grayscale');
