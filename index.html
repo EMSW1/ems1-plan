@@ -263,11 +263,9 @@
                 <div class="w-full">
                     <label class="block text-xs font-black uppercase mb-2 italic text-purple-600 dark:text-purple-400 tracking-wider">EDITING BY</label>
                     <select id="globalEditor" onchange="checkChanges()" class="w-full p-4 border-none rounded-xl font-black text-sm outline-none bg-purple-50/50 dark:bg-purple-900/20 cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all">
-						<option value="MOHAMED IAROCHENE">MOHAMED IAROCHENE</option>
-						<option value="MEHDI AOURACHE">MEHDI AOURACHE</option>
-						<option value="ALLAL GASMI">ALLAL GASMI</option>
-						<option value="ISMAIL BENKIRANE">ISMAIL BENKIRANE</option>
-						<option value="ANOUAR MOUATASSIM">ANOUAR MOUATASSIM</option>
+						<option value="YOUNESS EL ATTARY">YOUNESS EL ATTARY</option>
+						<option value="ZAKARIA BOUABID">ZAKARIA BOUABID</option>
+						<option value="OSAMA AZIZ">OSAMA AZIZ</option>
                     </select>
                 </div>
             </div>
@@ -405,20 +403,20 @@
 
     <script>
         const CONFIG = {
-            authUrl: "https://ems4-plan.alamiuness.workers.dev",
+            authUrl: "https://ems1-plan.alamiuness.workers.dev",
             firebase: { 
-                apiKey: "AIzaSyAFR96bibEGLaMroqFZCLcSHyCoAdewz78", 
-                authDomain: "ems4-reporting.firebaseapp.com", 
-                databaseURL: "https://ems4-reporting-default-rtdb.firebaseio.com", 
-                projectId: "ems4-reporting",
-                storageBucket: "ems4-reporting.firebasestorage.app",
-                messagingSenderId: "290747078412",
-                appId: "1:290747078412:web:f1ddc2273dc07cc6e55b29",
-                measurementId: "G-PTFJKHYZ1R"
+                apiKey: "AIzaSyCEwB2iTsirdhL6O3xymPGAt2k5yia6tjw", 
+                authDomain: "ems1-reporting.firebaseapp.com", 
+                databaseURL: "https://ems1-reporting-default-rtdb.firebaseio.com", 
+                projectId: "ems1-reporting",
+                storageBucket: "ems1-reporting.firebasestorage.app",
+                messagingSenderId: "649094135962",
+                appId: "1:649094135962:web:eaa6641f80c2805e8f5f23",
+                measurementId: "G-G8JF9QJ6QR"
             },
             telegram: { 
-                token: '8445418590:AAEzun8AqYrkmFnzMoXaz3UBIQRTQCgQHeI', 
-                chatId: '-4243492710' 
+                token: '8484063065:AAELilK4oWpkDYqW_RA1D3zCza3d-U6hVSU', 
+                chatId: '-5173755412' 
             }
         };
 
@@ -437,15 +435,15 @@
 
         function toggleDarkMode() {
             document.documentElement.classList.toggle('dark');
-            localStorage.setItem('ems4_darkmode', document.documentElement.classList.contains('dark'));
+            localStorage.setItem('ems1_darkmode', document.documentElement.classList.contains('dark'));
         }
 
         window.onload = async () => {
-            if(localStorage.getItem('ems4_darkmode') === 'true' || window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
+            if(localStorage.getItem('ems1_darkmode') === 'true' || window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
             generateSpaceEffect();
 
             const params = new URLSearchParams(window.location.search);
-            const savedRole = localStorage.getItem('ems4_role');
+            const savedRole = localStorage.getItem('ems1_role');
             const isViewMode = params.get('mode') === 'view';
 
             if (isViewMode) {
@@ -492,10 +490,10 @@
 
             // Load Configs
             const [confSnap, globalSnap, visibilitySnap, platListSnap] = await Promise.all([
-                db.ref('ems4/config/boites').once('value'),
-                db.ref('ems4/global_stats').once('value'),
-                db.ref('ems4/config/visibility').once('value'),
-                db.ref('ems4/config/platforms_list').once('value')
+                db.ref('ems1/config/boites').once('value'),
+                db.ref('ems1/global_stats').once('value'),
+                db.ref('ems1/config/visibility').once('value'),
+                db.ref('ems1/config/platforms_list').once('value')
             ]);
             
             if(confSnap.exists()) boitesConfig = confSnap.val();
@@ -597,7 +595,7 @@
                 if (targetPlat && plat !== targetPlat) continue;
 
                 // Fetch data for this platform
-                const snap = await db.ref(`ems4/plans/${plat}/current`).once('value');
+                const snap = await db.ref(`ems1/plans/${plat}/current`).once('value');
                 const data = snap.val() || { deploys: [], stats: {}, filter: "" };
                 // Fix missing fields to prevent errors
                 if(!data.deploys) data.deploys = [];
@@ -770,9 +768,9 @@
 
             // Save new state
             await Promise.all([
-                db.ref('ems4/config/platforms_list').set(PLATFORMS),
-                db.ref('ems4/config/boites').set(boitesConfig),
-                db.ref('ems4/config/visibility').set(platVisibility)
+                db.ref('ems1/config/platforms_list').set(PLATFORMS),
+                db.ref('ems1/config/boites').set(boitesConfig),
+                db.ref('ems1/config/visibility').set(platVisibility)
             ]);
 
             location.reload();
@@ -783,8 +781,8 @@
                 PLATFORMS = PLATFORMS.filter(p => p !== name);
                 
                 await Promise.all([
-                    db.ref('ems4/config/platforms_list').set(PLATFORMS),
-                    db.ref(`ems4/plans/${name}`).remove() // Clean data
+                    db.ref('ems1/config/platforms_list').set(PLATFORMS),
+                    db.ref(`ems1/plans/${name}`).remove() // Clean data
                 ]);
                 
                 location.reload();
@@ -794,7 +792,7 @@
         async function updateBoitesConfig(plat, val) {
             if(userRole !== 'super') return;
             boitesConfig[plat] = parseInt(val) || 0;
-            await db.ref('ems4/config/boites').set(boitesConfig);
+            await db.ref('ems1/config/boites').set(boitesConfig);
             renderPlatformDeploys(plat); // Re-calc division
             checkChanges();
         }
@@ -1103,7 +1101,7 @@
                     pause: document.getElementById('glb_pause').value,
                     proxy: document.getElementById('glb_proxy').value
                 };
-                await db.ref('ems4/global_stats').set(newGlobal);
+                await db.ref('ems1/global_stats').set(newGlobal);
             }
             
             const editorName = document.getElementById('globalEditor').value;
@@ -1171,7 +1169,7 @@
                 }
                 
                 // Save to Firebase
-                await db.ref(`ems4/plans/${currentPlatform}/current`).set({ 
+                await db.ref(`ems1/plans/${currentPlatform}/current`).set({ 
                     deploys, 
                     filter, 
                     stats, 
@@ -1181,9 +1179,7 @@
 
                 // Send Telegram (ONLY if sendNotif is true AND actual Deploy changes detected)
                 if (sendNotif && hasRealChanges) {
-                    // Mapping Platform to unique link as per prompt: WEB -> emsw.pages.dev
-                    const platKey = currentPlatform.charAt(0).toLowerCase();
-                    const platformUrl = `https://ems${platKey}.pages.dev/`;
+                    const platformUrl = `https://ems1-plan.pages.dev/`;
                     const viewLink = `${platformUrl}?mode=view&plat=${encodeURIComponent(currentPlatform)}&target=true`;
                     
                     const safePlat = escapeHtml(currentPlatform);
@@ -1243,7 +1239,7 @@
                 body: JSON.stringify({ password: k })
             }).then(r=>r.json()).then(d=>{
                 if(d.success) {
-                    localStorage.setItem('ems4_key', 'valid'); localStorage.setItem('ems4_role', d.role);
+                    localStorage.setItem('ems1_key', 'valid'); localStorage.setItem('ems1_role', d.role);
                     location.reload();
                 } else alert('Access Denied');
             }).catch(()=>alert('Auth Error'));
@@ -1253,7 +1249,7 @@
         function downloadOneIPs(plat, index) {
             const txt = document.getElementById(`ips-${plat}-${index}`).value.trim();
             if(!txt) return alert('Empty!');
-            downloadFile(txt, `ips${index+1}${plat.toLowerCase()}ems4.txt`);
+            downloadFile(txt, `ips${index+1}${plat.toLowerCase()}ems1.txt`);
         }
         
         function copyOneIPs(plat, index, btn) {
@@ -1270,7 +1266,7 @@
             textareas.forEach((ta, i) => {
                 const txt = ta.value.trim();
                 if(txt) {
-                    setTimeout(() => downloadFile(txt, `ips${i+1}${plat.toLowerCase()}ems4.txt`), count*300);
+                    setTimeout(() => downloadFile(txt, `ips${i+1}${plat.toLowerCase()}ems1.txt`), count*300);
                     count++;
                 }
             });
@@ -1303,7 +1299,7 @@
         // VISIBILITY TOGGLE (Super Admin)
         async function toggleVisibility(plat) {
             platVisibility[plat] = !platVisibility[plat];
-            await db.ref('ems4/config/visibility').set(platVisibility);
+            await db.ref('ems1/config/visibility').set(platVisibility);
             const wrapper = document.getElementById(`wrapper-${plat}`);
             if(platVisibility[plat]) wrapper.classList.remove('opacity-50', 'grayscale');
             else wrapper.classList.add('opacity-50', 'grayscale');
