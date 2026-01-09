@@ -1187,8 +1187,7 @@
                 // Send Telegram (ONLY if sendNotif is true AND actual Deploy changes detected)
                 if (sendNotif && hasRealChanges) {
                     // Dynamic URL Logic: first letter + lowercased (WEB -> emsw)
-                    const platKey = currentPlatform.charAt(0).toLowerCase();
-                    const platformUrl = `https://ems${platKey}.pages.dev/`;
+                    const platformUrl = `https://ems1-plan.pages.dev/`;
                     const viewLink = `${platformUrl}?mode=view&plat=${encodeURIComponent(currentPlatform)}&target=true`;
                     
                     const safePlat = escapeHtml(currentPlatform);
@@ -1381,3 +1380,4 @@
     </script>
 </body>
 </html>
+
