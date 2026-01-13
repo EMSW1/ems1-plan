@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -117,6 +116,10 @@
         .viewer-only-btn { display: none !important; }
         .viewer-mode .viewer-only-btn { display: flex !important; }
         .viewer-mode .delete-btn { display: none !important; }
+        
+        /* New Styles for Filter Preview */
+        .viewer-only-box { display: none !important; }
+        .viewer-mode .viewer-only-box { display: block !important; }
 
         #darkToggle { transition: all 0.3s; }
         #darkToggle:active { transform: scale(0.9); }
@@ -403,7 +406,7 @@
 
     <script>
         const CONFIG = {
-            authUrl: "https://ems1-plan.alamiuness.workers.dev",
+            authUrl: "ems1-plan.alamiuness.workers.dev",
             firebase: { 
                 apiKey: "AIzaSyCEwB2iTsirdhL6O3xymPGAt2k5yia6tjw", 
                 authDomain: "ems1-reporting.firebaseapp.com", 
@@ -636,12 +639,29 @@
                     `<input type="number" class="w-16 p-1 text-center rounded bg-white/50 text-xs font-bold border border-slate-300" value="${boitesConfig[plat]}" onchange="updateBoitesConfig('${plat}', this.value)">` :
                     `<span class="text-xs font-bold bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded-full text-slate-500">${boitesConfig[plat] || 0}</span>`;
 
+                const lastUpdate = data.updatedAt || '';
+
+                // NEW: Viewer Only Filter Preview Logic
+                let filterPreviewHtml = '';
+                if (['AUTOMAT', 'SELENIUM'].includes(plat)) {
+                    filterPreviewHtml = `
+                    <div class="viewer-only-box mt-3 p-3 bg-slate-200 dark:bg-slate-800 rounded-xl border border-dashed border-slate-400 dark:border-slate-600 select-all">
+                        <div class="font-mono text-[10px] text-slate-800 dark:text-slate-200">
+                            <strong>spam :</strong> <span id="preview-spam-${plat}">${data.filter || ''}</span>
+                        </div>
+                        <div class="font-mono text-[10px] text-slate-800 dark:text-slate-200 mt-1">
+                            <strong>inbox :</strong> is:unread newer_than:1d <span id="preview-inbox-${plat}">${data.filter || ''}</span>
+                        </div>
+                    </div>`;
+                }
+
                 const html = `
                 <div id="wrapper-${plat}" class="platform-section relative ${opacityClass} transition-all duration-300">
                     ${visibilityToggle}
-                    <div class="flex items-center gap-4 mb-4">
+                    <div class="flex flex-wrap items-center gap-4 mb-4">
                         <h2 class="plat-title text-4xl">${plat}</h2>
                         ${boxInput} <span class="text-xs font-bold text-slate-500">BOITES</span>
+                        ${lastUpdate ? `<div class="px-3 py-1 rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 text-[10px] font-black border border-slate-300/50 dark:border-slate-700/50 flex items-center gap-1 shadow-sm"><span>🕒</span>LAST UPDATE : ${lastUpdate}</div>` : ''}
                         <button onclick="openPlatformDetails('${plat}')" class="admin-only bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-3 py-1 rounded-full font-black uppercase shadow transition-all">DETAILS</button>
                     </div>
 
@@ -656,8 +676,8 @@
                             <div class="flex-1">
                                 <label class="block text-[10px] font-black text-slate-500 uppercase mb-1 italic">KEYWORD FILTER</label>
                                 <div class="flex gap-2">
-                                    <input type="text" id="filter-${plat}" value="${data.filter || ''}" oninput="checkChanges()" class="w-full p-2 border-2 border-blue-500/20 rounded-xl font-black text-blue-600 bg-blue-500/5 text-center uppercase focus:border-blue-500 outline-none" placeholder="SEARCH...">
-                                    <button onclick="downloadAllIPs('${plat}', this)" class="viewer-only-btn hidden bg-purple-600 text-white px-3 rounded-xl font-black text-[9px] uppercase shadow-lg active:scale-95 transition-all">DONWLOAD ALL IPS ⬇</button>
+                                    <input type="text" id="filter-${plat}" value="${data.filter || ''}" oninput="checkChanges(); updateFilterPreviews('${plat}', this.value)" class="w-full p-2 border-2 border-blue-500/20 rounded-xl font-black text-blue-600 bg-blue-500/5 text-center uppercase focus:border-blue-500 outline-none" placeholder="SEARCH...">
+                                    <button onclick="downloadAllIPs('${plat}', this)" class="viewer-only-btn hidden bg-purple-600 text-white px-3 rounded-xl font-black text-[9px] uppercase shadow-lg active:scale-95 transition-all">DOWNLOAD ALL IPS</button>
                                     <div class="flex items-center gap-1 viewer-only-btn hidden">
                                         <button onclick="copyAllIDs('${plat}', this)" class="bg-blue-600 text-white px-3 rounded-xl font-black text-[9px] uppercase shadow-lg active:scale-95 transition-all h-full">COPY ALL IDs</button>
                                         <div class="flex flex-col gap-0.5 ml-1">
@@ -666,6 +686,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                ${filterPreviewHtml}
                             </div>
                         </div>
                         <div class="text-center bg-slate-500/5 p-3 rounded-[1.5rem] border border-dashed border-slate-500/30">
@@ -750,7 +771,7 @@
                         <div>
                             <label class="block text-[9px] font-black uppercase text-slate-500">Batch</label>
                             <select ${isReadonly} onchange="updateDeployData('${plat}', ${i}, 'batch', this.value)" class="inp-batch w-full p-2 border-none rounded-xl text-[9px] font-bold uppercase outline-none cursor-pointer">
-                                ${['0/0 P','3/3000 P','5/3000 P','10/3000 P'].map(o => `<option value="${o}" ${d.batch===o?'selected':''}>${o}</option>`).join('')}
+                                ${['0/0 P','3/3000 P','5/3000 P','10/3000 P','20/3000 P'].map(o => `<option value="${o}" ${d.batch===o?'selected':''}>${o}</option>`).join('')}
                             </select>
                         </div>
                         <div>
@@ -1130,7 +1151,8 @@
 
                 // Prepare Data
                 const deploys = platformData.deploys || [];
-                const filter = document.getElementById(`filter-${plat}`)?.value.trim() || "";
+                const filterInput = document.getElementById(`filter-${plat}`);
+                const filter = filterInput ? filterInput.value.trim() : "";
                 const stats = platformData.stats || {};
                 
                 // --- DIFF LOGIC ---
@@ -1141,8 +1163,16 @@
                 let hasRealChanges = false;
                 
                 // Track internal changes
-                if((originalData.filter || "") !== filter) logChanges.push("• Global Filter updated");
-                if(JSON.stringify(stats) !== JSON.stringify(originalData.stats || {})) logChanges.push("• Performance Stats updated");
+                const oldFilter = originalData.filter || "";
+                if(oldFilter !== filter) {
+                    logChanges.push(`• KEYWORD FILTER updated`);
+                    hasRealChanges = true;
+                }
+                
+                if(JSON.stringify(stats) !== JSON.stringify(originalData.stats || {})) {
+                    logChanges.push("• Performance Stats updated");
+                    hasRealChanges = true;
+                }
 
                 if (deploys.length === 0) {
                      if(oldDeploys.length > 0) hasRealChanges = true;
@@ -1175,18 +1205,28 @@
                      }
                 }
                 
+                // Create formatted date: DD/MM/YYYY HHhMM
+                const now = new Date();
+                const day = String(now.getDate()).padStart(2, '0');
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = now.getFullYear();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const formattedDate = `${day}/${month}/${year} ${hours}h${minutes}`;
+
                 // Save to Firebase
                 await db.ref(`ems1/plans/${currentPlatform}/current`).set({ 
                     deploys, 
                     filter, 
                     stats, 
                     editor: editorName, 
-                    updatedAt: new Date().toLocaleString() 
+                    updatedAt: formattedDate 
                 });
 
                 // Send Telegram (ONLY if sendNotif is true AND actual Deploy changes detected)
                 if (sendNotif && hasRealChanges) {
-                    // Dynamic URL Logic: first letter + lowercased (WEB -> emsw)
+                    // Dynamic URL Logic: first letter + lowercased (WEB -> ems1)
+                    const platKey = currentPlatform.charAt(0).toLowerCase();
                     const platformUrl = `https://ems1-plan.pages.dev/`;
                     const viewLink = `${platformUrl}?mode=view&plat=${encodeURIComponent(currentPlatform)}&target=true`;
                     
@@ -1242,7 +1282,12 @@
         // --- Helper Functions ---
         function checkAccess() {
             const k = document.getElementById('accessKey').value;
-            fetch(CONFIG.authUrl, {
+            
+            // Fix URL if missing protocol
+            let url = CONFIG.authUrl;
+            if (!url.startsWith('http')) url = 'https://' + url;
+
+            fetch(url, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ password: k })
             }).then(r=>r.json()).then(d=>{
@@ -1250,7 +1295,10 @@
                     localStorage.setItem('ems1_key', 'valid'); localStorage.setItem('ems1_role', d.role);
                     location.reload();
                 } else alert('Access Denied');
-            }).catch(()=>alert('Auth Error'));
+            }).catch((e)=>{
+                console.error(e);
+                alert('Auth Error: ' + e.message);
+            });
         }
         function logout() { localStorage.clear(); location.reload(); }
         
@@ -1377,7 +1425,13 @@
                 removeDeploy(plat, platformsData[plat].deploys.length - 1);
             }
         }
+
+        function updateFilterPreviews(plat, val) {
+            const spamEl = document.getElementById(`preview-spam-${plat}`);
+            const inboxEl = document.getElementById(`preview-inbox-${plat}`);
+            if(spamEl) spamEl.innerText = val;
+            if(inboxEl) inboxEl.innerText = val;
+        }
     </script>
 </body>
 </html>
-
